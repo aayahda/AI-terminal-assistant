@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-terminal-assistant"
+version = "0.1.0"
+description = "Convert natural language to shell commands using Claude"
+requires-python = ">=3.9"
+dependencies = [
+    "click>=8.0",
+    "anthropic>=0.40.0",
+]
+
+[project.scripts]
+ai-cmd = "ai_terminal_assistant.cli:main"
