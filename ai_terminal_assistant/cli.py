@@ -1,12 +1,46 @@
 from __future__ import annotations
 
+import json
 import os
 import platform
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 
 import anthropic
 import click
+
+
+def _history_path() -> Path:
+    path = Path.home() / ".ai-cmd" / "history.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _save_history_entry(query: str, command: str, model: str) -> None:
+    path = _history_path()
+    try:
+        entries = json.loads(path.read_text()) if path.exists() else []
+    except (json.JSONDecodeError, OSError):
+        entries = []
+
+    entries.append({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "query": query,
+        "command": command,
+        "model": model,
+    })
+    path.write_text(json.dumps(entries, indent=2))
+
+
+def _load_history(limit: int = 10) -> list[dict]:
+    path = _history_path()
+    try:
+        entries = json.loads(path.read_text()) if path.exists() else []
+    except (json.JSONDecodeError, OSError):
+        entries = []
+    return entries[-limit:]
 
 
 def get_system_prompt() -> str:
@@ -36,7 +70,7 @@ def translate(query: str, model: str) -> str:
 
 
 @click.command()
-@click.argument("query", nargs=-1, required=True)
+@click.argument("query", nargs=-1, required=False)
 @click.option(
     "-e", "--execute", is_flag=True, help="Execute the command after confirmation."
 )
@@ -49,7 +83,27 @@ def translate(query: str, model: str) -> str:
     show_default=True,
     help="Claude model to use.",
 )
-def main(query: tuple[str, ...], execute: bool, yes: bool, model: str) -> None:
+@click.option(
+    "-H", "--history", "show_history", is_flag=True,
+    help="Show recent command translations.",
+)
+@click.option(
+    "--history-limit", default=10, show_default=True,
+    help="Number of history entries to show.",
+)
+@click.option(
+    "--history-clear", is_flag=True,
+    help="Clear all command history.",
+)
+def main(
+    query: tuple[str, ...],
+    execute: bool,
+    yes: bool,
+    model: str,
+    show_history: bool,
+    history_limit: int,
+    history_clear: bool,
+) -> None:
     """Translate natural language into shell commands using Claude.
 
     Examples:
@@ -58,7 +112,31 @@ def main(query: tuple[str, ...], execute: bool, yes: bool, model: str) -> None:
         ai-cmd list all python files recursively
         ai-cmd -e find large files over 100MB
         ai-cmd -ey show disk usage sorted by size
+        ai-cmd --history
+        ai-cmd --history-clear
     """
+    if history_clear:
+        _history_path().unlink(missing_ok=True)
+        click.secho("History cleared.", fg="yellow")
+        return
+
+    if show_history:
+        entries = _load_history(history_limit)
+        if not entries:
+            click.secho("No history yet.", fg="yellow")
+            return
+        for entry in entries:
+            click.secho(f"[{entry['timestamp']}]  ", fg="bright_black", nl=False)
+            click.echo(f"\"{entry['query']}\"")
+            click.secho(f"  → {entry['command']}", fg="green")
+            click.echo()
+        return
+
+    if not query:
+        ctx = click.get_current_context()
+        click.echo(ctx.get_help())
+        raise SystemExit(0)
+
     prompt = " ".join(query)
 
     try:
@@ -71,6 +149,11 @@ def main(query: tuple[str, ...], execute: bool, yes: bool, model: str) -> None:
     except anthropic.APIError as exc:
         click.secho(f"API error: {exc.message}", fg="red", err=True)
         raise SystemExit(1)
+
+    try:
+        _save_history_entry(prompt, command, model)
+    except Exception:
+        pass
 
     click.secho("Command:", fg="green", bold=True)
     click.echo(f"  {command}")

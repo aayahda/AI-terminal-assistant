@@ -7,6 +7,7 @@ A CLI tool that converts natural language into shell commands using the Claude A
 - Translates natural language to shell commands
 - Auto-detects your OS and shell for accurate commands
 - Optional command execution with confirmation prompt
+- Command history — stores past translations for quick reference
 - Configurable Claude model
 
 ## Installation
@@ -52,6 +53,9 @@ ai-cmd -ey show disk usage sorted by size
 | `-e, --execute` | Execute the command after showing it |
 | `-y, --yes` | Skip confirmation (use with `-e`) |
 | `--model` | Choose a Claude model (default: `claude-sonnet-4-6`) |
+| `-H, --history` | Show recent command translations |
+| `--history-limit N` | Number of history entries to show (default: 10) |
+| `--history-clear` | Clear all command history |
 
 ## Examples
 
