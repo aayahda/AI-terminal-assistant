@@ -57,16 +57,28 @@ def get_system_prompt() -> str:
     )
 
 
-def translate(query: str, model: str) -> str:
+def translate(query: str, model: str, web_search: bool = False) -> str:
     """Send the natural language query to Claude and return the command."""
     client = anthropic.Anthropic()
-    response = client.messages.create(
+
+    kwargs: dict = dict(
         model=model,
         max_tokens=1024,
         system=get_system_prompt(),
         messages=[{"role": "user", "content": query}],
     )
-    return response.content[0].text.strip()
+
+    if web_search:
+        kwargs["tools"] = [{"type": "web_search_20260209", "name": "web_search"}]
+
+    response = client.messages.create(**kwargs)
+
+    # With web search, content may contain server_tool_use blocks before the text.
+    # Find the last text block which has the final command.
+    text_blocks = [b for b in response.content if b.type == "text"]
+    if not text_blocks:
+        raise ValueError("No text response received from Claude.")
+    return text_blocks[-1].text.strip()
 
 
 @click.command()
@@ -95,6 +107,10 @@ def translate(query: str, model: str) -> str:
     "--history-clear", is_flag=True,
     help="Clear all command history.",
 )
+@click.option(
+    "-w", "--web", "web_search", is_flag=True,
+    help="Search the web before generating the command.",
+)
 def main(
     query: tuple[str, ...],
     execute: bool,
@@ -103,6 +119,7 @@ def main(
     show_history: bool,
     history_limit: int,
     history_clear: bool,
+    web_search: bool,
 ) -> None:
     """Translate natural language into shell commands using Claude.
 
@@ -112,6 +129,7 @@ def main(
         ai-cmd list all python files recursively
         ai-cmd -e find large files over 100MB
         ai-cmd -ey show disk usage sorted by size
+        ai-cmd -w install the latest version of node.js
         ai-cmd --history
         ai-cmd --history-clear
     """
@@ -139,8 +157,11 @@ def main(
 
     prompt = " ".join(query)
 
+    if web_search:
+        click.secho("Searching the web...", fg="bright_black")
+
     try:
-        command = translate(prompt, model)
+        command = translate(prompt, model, web_search=web_search)
     except (anthropic.AuthenticationError, TypeError):
         click.secho(
             "Error: ANTHROPIC_API_KEY is not set or is invalid.", fg="red", err=True

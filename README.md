@@ -8,6 +8,7 @@ A CLI tool that converts natural language into shell commands using the Claude A
 - Auto-detects your OS and shell for accurate commands
 - Optional command execution with confirmation prompt
 - Command history — stores past translations for quick reference
+- Web search — Claude searches the web first for version-sensitive commands
 - Configurable Claude model
 
 ## Installation
@@ -56,6 +57,7 @@ ai-cmd -ey show disk usage sorted by size
 | `-H, --history` | Show recent command translations |
 | `--history-limit N` | Number of history entries to show (default: 10) |
 | `--history-clear` | Clear all command history |
+| `-w, --web` | Search the web before generating the command |
 
 ## Examples
 
