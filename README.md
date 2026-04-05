@@ -9,6 +9,7 @@ A CLI tool that converts natural language into shell commands using the Claude A
 - Optional command execution with confirmation prompt
 - Command history — stores past translations for quick reference
 - Smart web search — automatically searches the web for queries containing words like "install", "latest", "version", "update"
+- Multi-step execution — breaks complex tasks into sequential steps and runs them one by one
 - Configurable Claude model
 
 ## Installation
@@ -59,8 +60,11 @@ ai-cmd -ey show disk usage sorted by size
 | `--history-clear` | Clear all command history |
 | `-w, --web` | Force web search regardless of query keywords |
 | `--no-search` | Disable automatic web search |
+| `-s, --steps` | Break task into sequential steps and execute one by one |
 
 ## Examples
+
+### Basic Commands
 
 ```bash
 $ ai-cmd count lines of code in all python files
@@ -74,6 +78,74 @@ Command:
 $ ai-cmd show top 10 processes by memory usage
 Command:
   ps aux --sort=-%mem | head -11
+```
+
+### Web Search (auto-triggered)
+
+```bash
+$ ai-cmd install the latest version of node.js
+Searching the web...
+Command:
+  brew install node
+
+$ ai-cmd what version of python is installed
+Searching the web...
+Command:
+  python3 --version
+
+$ ai-cmd --no-search update homebrew
+Command:
+  brew update
+```
+
+### Command History
+
+```bash
+$ ai-cmd --history
+[2026-04-05 10:22:01]  "list all python files recursively"
+  → find . -name "*.py"
+
+[2026-04-05 10:25:14]  "show disk usage sorted by size"
+  → du -sh * | sort -rh
+
+$ ai-cmd --history --history-limit 5   # show last 5 entries
+$ ai-cmd --history-clear               # wipe history
+```
+
+### Multi-step Execution
+
+```bash
+$ ai-cmd -s "set up a new python project called weather-app with a venv, install requests and fastapi, and create a main.py"
+
+Plan:
+  1/5 Create project directory
+       $ mkdir weather-app
+  2/5 Navigate into the directory
+       $ cd weather-app
+  3/5 Create a virtual environment
+       $ python3 -m venv venv
+  4/5 Install dependencies
+       $ pip install requests fastapi
+  5/5 Create main.py
+       $ touch main.py
+
+Execute all steps? [y/N]: y
+
+Step 1/5: Create project directory
+  $ mkdir weather-app  ✓
+Step 2/5: Navigate into the directory
+  $ cd weather-app  ✓
+Step 3/5: Create a virtual environment
+  $ python3 -m venv venv  ✓
+Step 4/5: Install dependencies
+  $ pip install requests fastapi  ✓
+Step 5/5: Create main.py
+  $ touch main.py  ✓
+
+Done!
+
+# Skip confirmation with -y
+$ ai-cmd -sy "create a logs directory and an empty app.log file"
 ```
 
 ## License
